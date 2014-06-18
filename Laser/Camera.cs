@@ -21,12 +21,6 @@ namespace Laser {
         private float radians180 = MathHelper.DegreesToRadians(180);
         private float radians270 = MathHelper.DegreesToRadians(270);
 
-        public void traslateAndRotateMatrix() {
-            GL.Rotate(MathHelper.RadiansToDegrees(rotation.X), 1, 0, 0);
-            GL.Rotate(MathHelper.RadiansToDegrees(rotation.Y), 0, 1, 0);
-            GL.Translate(position);
-        }
-
         public void update(Game game) {
 
             KeyboardState k = Keyboard.GetState();
@@ -46,24 +40,24 @@ namespace Laser {
 
 
             if(k.IsKeyDown(Key.W)){
-                moveDif.X += sin * moveSpeed;
-                moveDif.Y += cos * moveSpeed;
-            }
-            if (k.IsKeyDown(Key.S)) {
                 moveDif.X += sin * -moveSpeed;
                 moveDif.Y += cos * -moveSpeed;
+            }
+            if (k.IsKeyDown(Key.S)) {
+                moveDif.X += sin * moveSpeed;
+                moveDif.Y += cos * moveSpeed;
             }
 
             sin = (float)Math.Sin(radians270 - rotation.Y);
             cos = (float)Math.Cos(radians270 - rotation.Y);
 
             if (k.IsKeyDown(Key.A)) {
-                moveDif.X += sin * moveSpeed;
-                moveDif.Y += cos * moveSpeed;
-            }
-            if (k.IsKeyDown(Key.D)) {
                 moveDif.X += sin * -moveSpeed;
                 moveDif.Y += cos * -moveSpeed;
+            }
+            if (k.IsKeyDown(Key.D)) {
+                moveDif.X += sin * moveSpeed;
+                moveDif.Y += cos * moveSpeed;
             }
 
             position.X += moveDif.X;
@@ -88,6 +82,14 @@ namespace Laser {
 
                 Mouse.SetPosition(game.Bounds.X + game.Bounds.Width / 2, game.Bounds.Y + game.Bounds.Height / 2);
             }
+        }
+
+        public Matrix4 getViewMatrix() {
+            Matrix4 modelView = Matrix4.LookAt(Vector3.Zero, Vector3.UnitZ, Vector3.UnitY);
+            modelView *= Matrix4.CreateTranslation(position);
+            modelView *= Matrix4.CreateRotationY(rotation.Y);
+            modelView *= Matrix4.CreateRotationX(-rotation.X);
+            return modelView;
         }
     }
 }

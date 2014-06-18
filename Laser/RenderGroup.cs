@@ -47,11 +47,13 @@ namespace Laser {
         private List<Vector4> colorList;
         private List<uint> indexList;
         private List<Vector2> textureCoordList;
+        private List<Vector3> normalList;
 
         private Vector3[] vertices;
         private Vector4[] colors;
         private uint[] indices;
         private Vector2[] textureCoords;
+        private Vector3[] normals;
 
         uint i = 0;
 
@@ -75,6 +77,7 @@ namespace Laser {
         private uint vboVertices;
         private uint vboColors;
         private uint vboTextureCoords;
+        private uint vboNormals;
 
         private uint pId;
 
@@ -91,6 +94,7 @@ namespace Laser {
             if (useTexture) {
                 textureCoordList = new List<Vector2>();
             }
+            normalList = new List<Vector3>();
             indexList = new List<uint>();
 
             this.beginMode = beginMode;
@@ -212,6 +216,8 @@ namespace Laser {
             //Front
             if (front) {
 
+                normalList.Add(new Vector3(0, 0, 1));
+
                 vertexList.Add(new Vector3(b.X, b.Y, b.Z));// 0
                 vertexList.Add(new Vector3(a.X, b.Y, b.Z));// 1
                 vertexList.Add(new Vector3(a.X, a.Y, b.Z));// 2
@@ -244,6 +250,8 @@ namespace Laser {
 
             //Back
             if (back) {
+
+                normalList.Add(new Vector3(0, 0, -1));
 
                 vertexList.Add(new Vector3(b.X, b.Y, a.Z));// 4
                 vertexList.Add(new Vector3(a.X, b.Y, a.Z));// 5
@@ -292,6 +300,8 @@ namespace Laser {
             //Left
             if (left) {
 
+                normalList.Add(new Vector3(-1, 0, 0));
+
                 vertexList.Add(new Vector3(a.X, b.Y, b.Z));// 1 + 8
                 vertexList.Add(new Vector3(a.X, b.Y, a.Z));// 5 + 8
                 vertexList.Add(new Vector3(a.X, a.Y, a.Z));// 6 + 8
@@ -324,6 +334,8 @@ namespace Laser {
 
             //Right
             if (right) {
+
+                normalList.Add(new Vector3(1, 0, 0));
 
                 vertexList.Add(new Vector3(b.X, b.Y, b.Z));// 0 + 8
                 vertexList.Add(new Vector3(b.X, b.Y, a.Z));// 4 + 8
@@ -371,6 +383,8 @@ namespace Laser {
             //Top
             if (top) {
 
+                normalList.Add(new Vector3(0, -1, 0));
+
                 vertexList.Add(new Vector3(b.X, a.Y, b.Z));// 3 + 16
                 vertexList.Add(new Vector3(a.X, a.Y, b.Z));// 2 + 16
                 vertexList.Add(new Vector3(a.X, a.Y, a.Z));// 6 + 16
@@ -403,6 +417,8 @@ namespace Laser {
 
             //Bottom
             if (bottom) {
+
+                normalList.Add(new Vector3(0, 1, 0));
 
                 vertexList.Add(new Vector3(b.X, b.Y, b.Z));// 0 + 16
                 vertexList.Add(new Vector3(a.X, b.Y, b.Z));// 1 + 16
@@ -447,6 +463,9 @@ namespace Laser {
 
             vertices = vertexList.ToArray<Vector3>();
             Console.WriteLine(vertices.Length + " vertices");
+
+            normals = normalList.ToArray<Vector3>();
+            Console.WriteLine(normals.Length + " normals");
 
             /*GL.BindBuffer(BufferTarget.ArrayBuffer, bufferIdVertices);
             GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(vertices.Length * 3 * sizeof(float)), vertices, BufferUsageHint.StaticDraw);
@@ -495,16 +514,19 @@ namespace Laser {
             uint pIndex = 0;
             uint cIndex = 1;
             uint tIndex = 2;
+            uint nIndex = 3;
 
             GL.BindAttribLocation(pId, pIndex, "in_Position");
             GL.BindAttribLocation(pId, cIndex, "in_Color");
             GL.BindAttribLocation(pId, tIndex, "in_TextureCoord");
+            GL.BindAttribLocation(pId, nIndex, "in_Normal");
 
             GL.UseProgram(pId);
 
             vboVertices = CreateVBO<Vector3>(vertices, Vector3.SizeInBytes);
             if (useColor) { vboColors = CreateVBO<Vector4>(colors, Vector4.SizeInBytes); }
             if (useTexture) { vboTextureCoords = CreateVBO<Vector2>(textureCoords, Vector2.SizeInBytes); }
+            vboNormals = CreateVBO<Vector3>(normals, Vector3.SizeInBytes);
             ibo = CreateIBO(indices);
 
             GL.GenVertexArrays(1, out vao);
@@ -513,6 +535,10 @@ namespace Laser {
             GL.EnableVertexAttribArray(pIndex);
             GL.BindBuffer(BufferTarget.ArrayBuffer, vboVertices);
             GL.VertexAttribPointer(pIndex, 3, VertexAttribPointerType.Float, false, Vector3.SizeInBytes, IntPtr.Zero);
+
+            GL.EnableVertexAttribArray(nIndex);
+            GL.BindBuffer(BufferTarget.ArrayBuffer, vboNormals);
+            GL.VertexAttribPointer(nIndex, 3, VertexAttribPointerType.Float, false, Vector3.SizeInBytes, IntPtr.Zero);
 
             if (useColor) {
                 GL.EnableVertexAttribArray(cIndex);
@@ -569,6 +595,7 @@ namespace Laser {
                 GL.EnableVertexAttribArray(0);
                 GL.EnableVertexAttribArray(1);
                 GL.EnableVertexAttribArray(2);
+                GL.EnableVertexAttribArray(3);
 
                 GL.BindBuffer(BufferTarget.ElementArrayBuffer, ibo);
 
@@ -579,6 +606,7 @@ namespace Laser {
                 GL.DisableVertexAttribArray(0);
                 GL.DisableVertexAttribArray(1);
                 GL.DisableVertexAttribArray(2);
+                GL.DisableVertexAttribArray(3);
 
                 GL.BindVertexArray(0);
 

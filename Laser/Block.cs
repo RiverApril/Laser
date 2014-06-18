@@ -52,7 +52,7 @@ namespace Laser {
 
         public void addToVbo(World world, Chunk chunk, RenderGroup vbo, int x, int y, int z) {
             if (!flags.HasFlag(BlockFlags.invisible)) {
-                vbo.addCube(new Vector3(x - .5f, y - .5f, z - .5f), new Vector3(x + .5f, y + .5f, z + .5f), sidesToRender(chunk, world, x, y, z), new Vector4[]{new Vector4(1, 0, 0, 1)}, textureCoords);
+                vbo.addCube(new Vector3(x - .5f, y - .5f, z - .5f), new Vector3(x + .5f, y + .5f, z + .5f), sidesToRender(chunk, world, x, y, z), new Vector4[]{new Vector4(1, 1, 1, 1)}, textureCoords);
             }
         }
 

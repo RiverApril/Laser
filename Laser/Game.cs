@@ -33,16 +33,21 @@ precision highp float;
 attribute vec3 in_Position;
 attribute vec4 in_Color;
 attribute vec2 in_TextureCoord;
-uniform mat4 modelAndProjMatrix;
+attribute vec3 in_Normal;
+
+uniform mat4 modelMatrix;
+uniform mat4 projMatrix;
 
 varying vec4 pass_Color;
 varying vec2 pass_TextureCoord;
+varying vec2 pass_Normal;
 
 void main(void) {
-    gl_Position = vec4(in_Position, 1.0) * modelAndProjMatrix;
+    gl_Position = projMatrix * modelMatrix * vec4(in_Position, 1.0);
 	
 	pass_Color = in_Color;
 	pass_TextureCoord = in_TextureCoord;
+	pass_Normal = in_Normal;
 }
 ";
 
@@ -54,15 +59,14 @@ uniform sampler2D texture_diffuse;
 
 varying vec4 pass_Color;
 varying vec2 pass_TextureCoord;
+varying vec2 pass_Normal;
 
 void main(void) {
-  gl_FragColor = pass_Color;
-  gl_FragColor = texture2D(texture_diffuse, pass_TextureCoord);
+    gl_FragColor = (texture2D(texture_diffuse, pass_TextureCoord) * pass_Color);
 }
 ";
-        private Matrix4 projection;
+        private Matrix4 projectionView;
         private Matrix4 modelView;
-        private Matrix4 modelAndProjectionView;
 
         public Game() : base(640, 480, GraphicsMode.Default, "L.A.S.E.R."){
             Run(60);
@@ -93,6 +97,7 @@ void main(void) {
 
             GL.LinkProgram(glProgram);
             GL.ValidateProgram(glProgram);
+            GL.UseProgram(glProgram);
 
             Console.WriteLine(GL.GetError());
 
@@ -104,6 +109,11 @@ void main(void) {
             GL.Enable(EnableCap.Texture2D);
             GL.Enable(EnableCap.CullFace);
             GL.CullFace(CullFaceMode.Back);
+
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Clamp);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Clamp);
 
             world = new World(this);
 
@@ -150,9 +160,9 @@ void main(void) {
 
             GL.Viewport(ClientRectangle);
 
-            projection = Matrix4.CreatePerspectiveFieldOfView((float)MathHelper.DegreesToRadians(120), Width / (float)Height, 0.001f, 1000.0f);
-            GL.MatrixMode(MatrixMode.Projection);
-            GL.LoadMatrix(ref projection);
+            projectionView = Matrix4.CreatePerspectiveFieldOfView((float)MathHelper.DegreesToRadians(90), Width / (float)Height, 0.1f, 1000.0f);
+            //GL.MatrixMode(MatrixMode.Projection);
+            //GL.LoadMatrix(ref projectionView);
 
         }
 
@@ -171,24 +181,46 @@ void main(void) {
 
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-            modelView = Matrix4.LookAt(Vector3.Zero, Vector3.UnitZ, Vector3.UnitY);
-            GL.MatrixMode(MatrixMode.Modelview);
-            GL.LoadMatrix(ref modelView);
+            GL.LoadIdentity();
 
-            camera.traslateAndRotateMatrix();
+            modelView = camera.getViewMatrix();
+            //GL.MatrixMode(MatrixMode.Modelview);
+            //GL.LoadMatrix(ref modelView);
 
-            modelAndProjectionView = projection * modelView;
+            float[] mf = Matrix4ToArray(modelView);
+            float[] pf = Matrix4ToArray(projectionView);
 
-            float f = modelAndProjectionView[0, 0];
 
-            int l = GL.GetUniformLocation(glProgram, "modelAndProjMatrix");
+            int mm = GL.GetUniformLocation(glProgram, "modelMatrix");
+            int pm = GL.GetUniformLocation(glProgram, "projMatrix");
 
-            GL.ProgramUniformMatrix4(glProgram, l, 1, true, ref f);
+            GL.ProgramUniformMatrix4(glProgram, mm, 1, false, mf);
+            GL.ProgramUniformMatrix4(glProgram, pm, 1, false, pf);
 
             world.render(this);
 
-            SwapBuffers();
+            SwapBuffers();                                                                                                                                                                
+        }
 
+        private float[] Matrix4ToArray(Matrix4 m) {
+            return new float[]{
+                m.Row0.X,
+                m.Row0.Y,
+                m.Row0.Z,
+                m.Row0.W,
+                m.Row1.X,
+                m.Row1.Y,
+                m.Row1.Z,
+                m.Row1.W,
+                m.Row2.X,
+                m.Row2.Y,
+                m.Row2.Z,
+                m.Row2.W,
+                m.Row3.X,
+                m.Row3.Y,
+                m.Row3.Z,
+                m.Row3.W
+            };
         }
         
         [STAThread]
