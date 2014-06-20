@@ -19,10 +19,10 @@ namespace Laser {
         bottom = 1 << 5,
         xLow = left,
         xHigh = right,
-        zLow = front,
-        zHigh = back,
-        yLow = bottom,
-        yHigh = top,
+        zLow = back,
+        zHigh = front,
+        yLow = top,
+        yHigh = bottom,
         xBoth = xLow | xHigh,
         yBoth = yLow | yHigh,
         zBoth = zLow | zHigh,
@@ -33,7 +33,7 @@ namespace Laser {
 
     }
 
-    public class RenderGroup {
+    public class VboGroup {
         // Was called Vbo, but then I realized that was an inacuate name.
 
         private BeginMode beginMode = BeginMode.Quads;
@@ -58,7 +58,6 @@ namespace Laser {
         uint i = 0;
 
         private int indicesCount;
-        private int verticesCount;
 
         private bool useColor;
         private bool useTexture;
@@ -67,7 +66,6 @@ namespace Laser {
 
         private static Vector4[] justWhite = new Vector4[] { new Vector4(1, 1, 1, 1) };
         private static Vector2[] defaultTextureCoords = new Vector2[4] { new Vector2(0, 0), new Vector2(textureSplit, 0), new Vector2(textureSplit, textureSplit), new Vector2(0, textureSplit) };
-
 
         private bool renderEnabled = false;
 
@@ -81,21 +79,23 @@ namespace Laser {
 
         private uint pId;
 
-        public RenderGroup(Game game) {
+        public VboGroup(Game game) {
             pId = (uint)game.glProgram;
+
+            vertexList = new List<Vector3>();
+            colorList = new List<Vector4>();
+            textureCoordList = new List<Vector2>();
+            normalList = new List<Vector3>();
+            indexList = new List<uint>();
         }
 
         internal void begin(BeginMode beginMode, bool useColor, bool useTexture) {
 
-            vertexList = new List<Vector3>();
-            if (useColor) {
-                colorList = new List<Vector4>();
-            }
-            if (useTexture) {
-                textureCoordList = new List<Vector2>();
-            }
-            normalList = new List<Vector3>();
-            indexList = new List<uint>();
+            vertexList.Clear();
+            colorList.Clear();
+            textureCoordList.Clear();
+            normalList.Clear();
+            indexList.Clear();
 
             this.beginMode = beginMode;
             this.useColor = useColor;
@@ -213,40 +213,6 @@ namespace Laser {
              * 
              */
 
-            //Front
-            if (front) {
-
-                normalList.Add(new Vector3(0, 0, 1));
-
-                vertexList.Add(new Vector3(b.X, b.Y, b.Z));// 0
-                vertexList.Add(new Vector3(a.X, b.Y, b.Z));// 1
-                vertexList.Add(new Vector3(a.X, a.Y, b.Z));// 2
-                vertexList.Add(new Vector3(b.X, a.Y, b.Z));// 3
-
-                indexList.Add(0 + (i * 4));
-                indexList.Add(1 + (i * 4));
-                indexList.Add(2 + (i * 4));
-                indexList.Add(3 + (i * 4));
-
-                if(useColor){
-                    colorList.Add(colors[c]);
-                    colorList.Add(colors[c]);
-                    colorList.Add(colors[c]);
-                    colorList.Add(colors[c]);
-                }
-
-                if(useTexture){
-                    textureCoordList.Add(textureCoords[t + 0]);
-                    textureCoordList.Add(textureCoords[t + 1]);
-                    textureCoordList.Add(textureCoords[t + 2]);
-                    textureCoordList.Add(textureCoords[t + 3]);
-                }
-
-                i++;
-                if (cc) c++;
-                if (tt) t += 4;
-            }
-
 
             //Back
             if (back) {
@@ -262,6 +228,40 @@ namespace Laser {
                 indexList.Add(0 + (i * 4));
                 indexList.Add(3 + (i * 4));
                 indexList.Add(2 + (i * 4));
+
+                if (useColor) {
+                    colorList.Add(colors[c]);
+                    colorList.Add(colors[c]);
+                    colorList.Add(colors[c]);
+                    colorList.Add(colors[c]);
+                }
+
+                if (useTexture) {
+                    textureCoordList.Add(textureCoords[t + 0]);
+                    textureCoordList.Add(textureCoords[t + 1]);
+                    textureCoordList.Add(textureCoords[t + 2]);
+                    textureCoordList.Add(textureCoords[t + 3]);
+                }
+
+                i++;
+                if (cc) c++;
+                if (tt) t += 4;
+            }
+
+            //Front
+            if (front) {
+
+                normalList.Add(new Vector3(0, 0, 1));
+
+                vertexList.Add(new Vector3(b.X, b.Y, b.Z));// 0
+                vertexList.Add(new Vector3(a.X, b.Y, b.Z));// 1
+                vertexList.Add(new Vector3(a.X, a.Y, b.Z));// 2
+                vertexList.Add(new Vector3(b.X, a.Y, b.Z));// 3
+
+                indexList.Add(0 + (i * 4));
+                indexList.Add(1 + (i * 4));
+                indexList.Add(2 + (i * 4));
+                indexList.Add(3 + (i * 4));
 
                 if (useColor) {
                     colorList.Add(colors[c]);
@@ -462,10 +462,10 @@ namespace Laser {
             if (useTexture) bufferIdTextureCoords = GL.GenBuffer();*/
 
             vertices = vertexList.ToArray<Vector3>();
-            Console.WriteLine(vertices.Length + " vertices");
+            //Console.WriteLine(vertices.Length + " vertices");
 
             normals = normalList.ToArray<Vector3>();
-            Console.WriteLine(normals.Length + " normals");
+            //Console.WriteLine(normals.Length + " normals");
 
             /*GL.BindBuffer(BufferTarget.ArrayBuffer, bufferIdVertices);
             GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(vertices.Length * 3 * sizeof(float)), vertices, BufferUsageHint.StaticDraw);
@@ -473,7 +473,7 @@ namespace Laser {
             */
             if (useColor) {
                 colors = colorList.ToArray<Vector4>();
-                Console.WriteLine(colors.Length + " colors");
+                //Console.WriteLine(colors.Length + " colors");
             }
             /*
                 GL.BindBuffer(BufferTarget.ArrayBuffer, bufferIdColors);
@@ -483,7 +483,7 @@ namespace Laser {
             */
             if(useTexture){
                 textureCoords = textureCoordList.ToArray<Vector2>();
-                Console.WriteLine(textureCoords.Length+" texture coords");
+                //Console.WriteLine(textureCoords.Length+" texture coords");
             }
             /*
                 GL.BindBuffer(BufferTarget.ArrayBuffer, bufferIdTextureCoords);
@@ -492,13 +492,12 @@ namespace Laser {
             }*/
 
             indices = indexList.ToArray<uint>();
-            Console.WriteLine(indices.Length+" indices");
+            //Console.WriteLine(indices.Length+" indices");
 
             /*GL.BindBuffer(BufferTarget.ElementArrayBuffer, bufferIdIndices);
             GL.BufferData(BufferTarget.ElementArrayBuffer, (IntPtr)(indices.Length * 1 * sizeof(uint)), indices, BufferUsageHint.StaticDraw);*/
 
             indicesCount = indices.Length;
-            verticesCount = vertices.Length;
             
             /*vertices = null;
             colors = null;

@@ -12,7 +12,7 @@ namespace Laser {
             none = 0,
             nonsolid = 1,
             abnormalRender = 1 << 1,
-            invisible = 1 << 2 | abnormalRender
+            invisible = (1 << 2) | abnormalRender
         }
 
         private static Block[] blockArray = new Block[3];
@@ -39,10 +39,10 @@ namespace Laser {
 
         private Vector2[] makeTextureCoords(int x, int y) {
             return new Vector2[] {
-                new Vector2((x+0) * RenderGroup.textureSplit, (y+0) * RenderGroup.textureSplit), 
-                new Vector2((x+1) * RenderGroup.textureSplit, (y+0) * RenderGroup.textureSplit), 
-                new Vector2((x+1) * RenderGroup.textureSplit, (y+1) * RenderGroup.textureSplit), 
-                new Vector2((x+0) * RenderGroup.textureSplit, (y+1) * RenderGroup.textureSplit) };
+                new Vector2((x+0) * VboGroup.textureSplit, (y+0) * VboGroup.textureSplit), 
+                new Vector2((x+1) * VboGroup.textureSplit, (y+0) * VboGroup.textureSplit), 
+                new Vector2((x+1) * VboGroup.textureSplit, (y+1) * VboGroup.textureSplit), 
+                new Vector2((x+0) * VboGroup.textureSplit, (y+1) * VboGroup.textureSplit) };
         }
 
         public static Block getBlock(int b) {
@@ -50,7 +50,7 @@ namespace Laser {
         }
 
 
-        public void addToVbo(World world, Chunk chunk, RenderGroup vbo, int x, int y, int z) {
+        public void addToVbo(World world, Chunk chunk, VboGroup vbo, int x, int y, int z) {
             if (!flags.HasFlag(BlockFlags.invisible)) {
                 vbo.addCube(new Vector3(x - .5f, y - .5f, z - .5f), new Vector3(x + .5f, y + .5f, z + .5f), sidesToRender(chunk, world, x, y, z), new Vector4[]{new Vector4(1, 1, 1, 1)}, textureCoords);
             }
@@ -64,8 +64,19 @@ namespace Laser {
             sides |= (world.getBlock(x, y + 1, z).flags.HasFlag(BlockFlags.abnormalRender) ? Sides.yHigh : Sides.none);
             sides |= (world.getBlock(x, y, z - 1).flags.HasFlag(BlockFlags.abnormalRender) ? Sides.zLow : Sides.none);
             sides |= (world.getBlock(x, y, z + 1).flags.HasFlag(BlockFlags.abnormalRender) ? Sides.zHigh : Sides.none);
-            Console.WriteLine("Sides to render: "+sides.ToString());
+            //Console.WriteLine("Sides to render: "+sides.ToString());
             return sides;
+        }
+
+        internal bool collides(World world, Vector3 position, Vector3 radii, int x, int y, int z) {
+            return !(
+                position.X + radii.X < x - .5 ||
+                position.Y + radii.Y < y - .5 ||
+                position.Z + radii.Z < y - .5 ||
+                position.X - radii.X > x + .5 ||
+                position.Y - radii.Y > y + .5 ||
+                position.Z - radii.Z > z + .5
+                );
         }
     }
 }

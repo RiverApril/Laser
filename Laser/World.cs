@@ -7,47 +7,31 @@ using OpenTK;
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
+using System.IO;
 
 namespace Laser {
     public class World {
 
-        private Dictionary<ChunkPosition, Chunk> loadedChunks;
+        public Game game;
+
+        private Dictionary<Vector3i, Chunk> loadedChunks;
+        private List<Vector3i> chunksToLoad;
+        private List<Vector3i> chunksToUnload;
+
+        public string directory = "testWorld";
 
         public World(Game game) {
-            loadedChunks = new Dictionary<ChunkPosition, Chunk>();
 
-            ChunkPosition p = new ChunkPosition(0, 0, 0);
-            loadedChunks.Add(p, new Chunk(p, this, game));
-            loadedChunks[p].setBlock(0, 0, 0, Block.stone);
-            loadedChunks[p].setBlock(1, 0, 0, Block.dirt);
-            loadedChunks[p].setBlock(2, 0, 0, Block.stone);
+            Directory.CreateDirectory(directory);
 
-            loadedChunks[p].setBlock(5, 5, 5, Block.dirt);
+            this.game = game;
 
-            p = new ChunkPosition(-1, 0, 0);
-            loadedChunks.Add(p, new Chunk(p, this, game));
-            loadedChunks[p].setBlock(15, 1, 0, Block.stone);
-            //loadedChunks[p].setBlock(14, 1, 0, Block.stone);
-            loadedChunks[p].setBlock(13, 1, 0, Block.dirt);
-            //loadedChunks[p].setBlock(12, 1, 0, Block.stone);
-            loadedChunks[p].setBlock(11, 1, 0, Block.stone);
-            loadedChunks[p].setBlock(9, 1, 0, Block.stone);
-            loadedChunks[p].setBlock(7, 1, 0, Block.dirt);
-            loadedChunks[p].setBlock(5, 1, 0, Block.stone);
-
-            p = new ChunkPosition(1, 0, 0);
-            loadedChunks.Add(p, new Chunk(p, this, game));
-            loadedChunks[p].setBlock(0, 1, 0, Block.stone);
-            //loadedChunks[p].setBlock(14, 1, 0, Block.stone);
-            loadedChunks[p].setBlock(2, 1, 0, Block.dirt);
-            //loadedChunks[p].setBlock(12, 1, 0, Block.stone);
-            loadedChunks[p].setBlock(3, 1, 0, Block.stone);
+            chunksToLoad = new List<Vector3i>();
+            chunksToUnload = new List<Vector3i>();
+            loadedChunks = new Dictionary<Vector3i, Chunk>();
 
 
-            foreach (Chunk chunk in loadedChunks.Values) {
-                chunk.resetVbo(this);
-                Console.WriteLine("reset vbo for chunk");
-            }
+
         }
 
         public void render(Game game) {
@@ -60,21 +44,117 @@ namespace Laser {
 
         }
 
-        public Block getBlock(int x, int y, int z) {
-            //Console.WriteLine("-1 % 16 = " + negModFix(-1, 16));
-            ChunkPosition p = new ChunkPosition(chunkVertexFromBlockVertex(x, Chunk.chunkXSize), chunkVertexFromBlockVertex(y, Chunk.chunkYSize), chunkVertexFromBlockVertex(z, Chunk.chunkZSize));
-            if (loadedChunks.ContainsKey(p)) {
-                return loadedChunks[p].getBlock(negModFix(x, Chunk.chunkXSize), negModFix(y, Chunk.chunkYSize), negModFix(z, Chunk.chunkZSize));
+        public void update(Game game) {
+
+            int x = (int)game.player.position.X/Chunk.chunkSize.x;
+            int y = (int)game.player.position.Y/Chunk.chunkSize.y;
+            int z = (int)game.player.position.Z/Chunk.chunkSize.z;
+
+            addToLoadedIfNeeded(new Vector3i(x, y, z));
+
+            for (int i = -game.renderDistance; i <= game.renderDistance; i++) {
+                for (int j = -game.renderDistance; j <= game.renderDistance; j++) {
+                    for (int k = -game.renderDistance; k <= game.renderDistance; k++) {
+                        addToLoadedIfNeeded(new Vector3i(i + x, j + y, k + z));
+                    }
+                }
             }
-            return Block.air;
+
+            if (chunksToLoad.Count > 0) {
+                loadChunk(chunksToLoad[0]);
+                chunksToLoad.RemoveAt(0);
+            }
+
+            if (chunksToUnload.Count > 0) {
+                unloadChunk(chunksToUnload[0]);
+                chunksToUnload.RemoveAt(0);
+            }
+
+            bool a = true;
+
+            foreach (Chunk chunk in loadedChunks.Values) {
+                chunk.update(game, this);
+                if(a){
+                    if(outOfView(chunk.chunkPosition, x, y, z, game)){
+                        chunksToUnload.Add(chunk.chunkPosition);
+                        a = false;
+                    }
+                }
+            }
+
         }
 
-        private int negModFix(int x, int m) {
-            return (x % m + m) % m;
+        private bool outOfView(Vector3i p, int x, int y, int z, Game game) {
+            return
+                (p.x < x - game.renderDistance) ||
+                (p.y < y - game.renderDistance) ||
+                (p.z < z - game.renderDistance) ||
+                (p.x > x + game.renderDistance) ||
+                (p.y > y + game.renderDistance) ||
+                (p.z > z + game.renderDistance);
         }
 
-        private int chunkVertexFromBlockVertex(int x, int xx) {
-            return (x - negModFix(x, xx)) / xx;
+        private void addToLoadedIfNeeded(Vector3i p) {
+            if(!loadedChunks.ContainsKey(p)){
+                if(!chunksToLoad.Contains(p)){
+                    chunksToLoad.Add(p);
+                }
+            }
+        }
+
+        public bool setBlock(int x, int y, int z, Block block, bool createChunkIfNeeded = false) {
+            return setBlock(new Vector3i(x, y, z), block, createChunkIfNeeded);
+        }
+
+        public bool setBlock(Vector3i position, Block block, bool createChunkIfNeeded = false) {
+            Vector3i p = MathCustom.chunkFromBlock(position, Chunk.chunkSize);
+            if (createChunkIfNeeded) {
+                loadChunk(p, false);
+            } else {
+                return false;
+            }
+            loadedChunks[p].setBlock(MathCustom.negModFix(position.x, Chunk.chunkSize.x), MathCustom.negModFix(position.y, Chunk.chunkSize.y), MathCustom.negModFix(position.z, Chunk.chunkSize.z), block);
+            return true;
+        }
+
+        public Block getBlock(int x, int y, int z, bool createChunkIfNeeded = false) {
+            return getBlock(new Vector3i(x, y, z), createChunkIfNeeded);
+        }
+
+        public Block getBlock(Vector3i position, bool createChunkIfNeeded = false) {
+            Vector3i p = MathCustom.chunkFromBlock(position, Chunk.chunkSize);
+            if (createChunkIfNeeded) {
+                loadChunk(p, false);
+            } else if(!loadedChunks.ContainsKey(p)) {
+                return Block.air;
+            }
+            return loadedChunks[p].getBlock(MathCustom.negModFix(position.x, Chunk.chunkSize.x), MathCustom.negModFix(position.y, Chunk.chunkSize.y), MathCustom.negModFix(position.z, Chunk.chunkSize.z));
+        }
+
+        private void loadChunk(Vector3i p, bool forceLoad = false) {
+            if(!loadedChunks.ContainsKey(p) || forceLoad){
+                loadedChunks.Add(p, new Chunk(p, this, game));
+            }
+        }
+
+        private void unloadChunk(Vector3i p) {
+            if (loadedChunks.ContainsKey(p)) {
+                loadedChunks[p].save();
+                loadedChunks.Remove(p);
+            }
+        }
+
+        internal void save() {
+            foreach (Chunk chunk in loadedChunks.Values) {
+                chunk.save();
+            }
+        }
+
+        internal void resetVboForChunk(int x, int y, int z) {
+            Vector3i p = MathCustom.chunkFromBlock(x, y, z, Chunk.chunkSize);
+            if (!loadedChunks.ContainsKey(p)) {
+                loadedChunks[p].needsVboReset = true;
+            }
         }
     }
 }

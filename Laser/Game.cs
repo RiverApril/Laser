@@ -13,19 +13,6 @@ namespace Laser {
 
     public class Game : GameWindow {
 
-        Random rand = new Random();
-
-        //Vbo testVbo;
-
-        public int textureMapID;
-
-        public World world;
-        public Camera camera = new Camera();
-
-        public int vertexShader;
-        public int fragmentShader;
-        public int glProgram;
-
         private string vertexShaderSource = @"
 
 precision highp float;
@@ -43,6 +30,7 @@ varying vec2 pass_TextureCoord;
 varying vec2 pass_Normal;
 
 void main(void) {
+    in_Position.y=-in_Position.y;
     gl_Position = projMatrix * modelMatrix * vec4(in_Position, 1.0);
 	
 	pass_Color = in_Color;
@@ -65,11 +53,25 @@ void main(void) {
     gl_FragColor = (texture2D(texture_diffuse, pass_TextureCoord) * pass_Color);
 }
 ";
+
+        public Random rand = new Random();
+
+        public int textureMapID;
+
+        public World world;
+        public Player player;
+
+        public int vertexShader;
+        public int fragmentShader;
+        public int glProgram;
+
         private Matrix4 projectionView;
         private Matrix4 modelView;
 
-        public Game() : base(640, 480, GraphicsMode.Default, "L.A.S.E.R."){
-            Run(60);
+        public int renderDistance = 3;
+
+        public Game() : base(640, 480, GraphicsMode.Default, ""){
+            Run(120, 60);
         }
 
         protected override void OnLoad(EventArgs e) {
@@ -108,7 +110,7 @@ void main(void) {
             GL.Enable(EnableCap.DepthTest);
             GL.Enable(EnableCap.Texture2D);
             GL.Enable(EnableCap.CullFace);
-            GL.CullFace(CullFaceMode.Back);
+            GL.CullFace(CullFaceMode.Front);
 
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
@@ -116,23 +118,7 @@ void main(void) {
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Clamp);
 
             world = new World(this);
-
-            /*testVbo = new Vbo();
-            testVbo.begin(BeginMode.Quads, false, true);
-
-            float size = .1f;
-
-            int t = 100;
-
-            for (float i = -size * t; i < size * t; i += size * 3) {
-                for (float j = -size * t; j < size * t; j += size * 3) {
-                    for (float k = -size * t; k < size * t; k += size * 3) {
-                        testVbo.addCube(new Vector3(-size + i, -size + j, -size + k), new Vector3(size + i, size + j, size + k), Sides.all);
-                    }
-                }
-            }
-
-            testVbo.end();*/
+            player = new Player(this);
 
         }
 
@@ -167,23 +153,29 @@ void main(void) {
         }
 
         protected override void OnUpdateFrame(FrameEventArgs e) {
+            Profiler.updateFps.update(e.Time);
+            Title = "Laser  UPS: " + Profiler.updateFps.fps + "  FPS: " + Profiler.renderFps.fps + "  Mem: " + (System.GC.GetTotalMemory(false) / 1048576)+" MB";
             base.OnUpdateFrame(e);
 
             if(Keyboard[Key.Escape]){
+                world.save();
                 Exit();
             }
 
-            camera.update(this);
+            world.update(this);
+
+            player.update(this);
         }
 
         protected override void OnRenderFrame(FrameEventArgs e) {
+            Profiler.renderFps.update(e.Time);
             base.OnRenderFrame(e);
 
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
             GL.LoadIdentity();
 
-            modelView = camera.getViewMatrix();
+            modelView = player.camera.getViewMatrix();
             //GL.MatrixMode(MatrixMode.Modelview);
             //GL.LoadMatrix(ref modelView);
 
